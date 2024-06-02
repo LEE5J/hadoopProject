@@ -8,30 +8,28 @@ import org.dto.FileInfo;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 
-import static org.service.FileDataLoader.loadFileInfo;
+import static org.service.FileDataLoader.getFileInfoList;
 
 public class HadoopFileReader {
-    private static LinkedList<FileInfo> fileInfoList = loadFileInfo(String filePath,int blockAssign);
+    private static LinkedList<FileInfo> fileInfoList = getFileInfoList();
 
     public HadoopFileReader() {
-        String filePath= ;
-        int blockAssign = 20;
-        this.fileInfoList = (LinkedList<FileInfo>) loadFileInfo("/absolutepath/datafile.txt",20);;
-        // 가정: fileInfoList가 여기서 초기화되거나 어딘가에서 채워진다.
     }
-
     public String readFileFromHadoop(String fileName) {
-        FileInfo fileInfo = findFileInfo(fileName);
-        if (fileInfo == null) {
+        List<FileInfo> fileInfoList1 = findFileInfo(fileName);
+        if (fileInfoList1.get(0) == null) {
             return "File not found in fileInfo list.";
         }
-
+        FileInfo fileInfo = fileInfoList1.get(0);
+        int endpoint = fileInfoList1.get(1).getFilePosition();
         try {
             Configuration conf = new Configuration();
             FileSystem fs = FileSystem.get(conf);
-            Path path = new Path("/path/to/hadoop/directory/" + fileInfo.getBlockName()); // 경로는 예시입니다.
+            Path path = new Path("/input/" + fileInfo.getBlockName()); // 경로는 하드코딩으로 하면 안될듯?
             try (InputStream in = fs.open(path);
                  BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
                 // 파일 위치로 스킵
@@ -47,13 +45,19 @@ public class HadoopFileReader {
         }
     }
 
-    private FileInfo findFileInfo(String fileName) {
+    private List<FileInfo> findFileInfo(String fileName) {//다음 파일까지 같이 넘겨받아야 종료 위치를 알수 있음
+        FileInfo target = null ,nextTarget = null;
         for (FileInfo fi : fileInfoList) {
+            if (!target.equals(null)){
+                nextTarget = fi;
+                break;
+            }
             if (fi.getFileName().equals(fileName)) {
-                return fi;
+                target =  fi;
             }
         }
-        return null;
+        List<FileInfo> fileInfoList1 = Arrays.asList(target, nextTarget);
+        return fileInfoList1;
     }
 
     public static void main(String[] args) {

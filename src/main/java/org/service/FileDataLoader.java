@@ -1,14 +1,12 @@
 package org.service;
-
 import org.dto.FileInfo;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.List;
 
 public class FileDataLoader {
+    private static final LinkedList<FileInfo> fileInfoList = loadFileInfo("/absolutepath/datafile.txt",20);
     public static LinkedList<FileInfo> loadFileInfo(String filePath,int blockAssign) { //블럭넘버할당
         int locateAssign = 32-blockAssign;
         LinkedList<FileInfo> fileInfoList = new LinkedList<>();
@@ -29,9 +27,12 @@ public class FileDataLoader {
         }
         return fileInfoList;
     }
-
-    public static void main(String[] args) {
-        List<FileInfo> fileInfoList = loadFileInfo("/absolutepath/datafile.txt",20);
-        fileInfoList.forEach(System.out::println);
+    public static LinkedList<FileInfo> getFileInfoList(){
+        return FileDataLoader.fileInfoList;
     }
+
+//    public static void main(String[] args) {
+//        List<FileInfo> fileInfoList = loadFileInfo("/absolutepath/datafile.txt",20);
+//        fileInfoList.forEach(System.out::println);
+//    }
 }

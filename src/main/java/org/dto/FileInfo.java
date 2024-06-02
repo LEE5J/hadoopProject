@@ -15,7 +15,7 @@ public class FileInfo {
         return fileName;
     }
 
-    public String blockName() {
+    public String getBlockName() {
         return blockName;
     }
 
