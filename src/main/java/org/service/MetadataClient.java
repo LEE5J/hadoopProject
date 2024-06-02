@@ -1,10 +1,8 @@
 package org.service;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import java.io.*;
 import java.net.*;
+import java.nio.file.*;
 import java.util.*;
 
 public class MetadataClient {
@@ -12,13 +10,10 @@ public class MetadataClient {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 12345;
     private static final String METADATA_FILE = "received_metadata.txt"; // 수신할 메타데이터 파일
-    private static final String HDFS_BLOCK_FILE = "/path/to/hdfs/output_block.txt"; // HDFS 블록 파일 경로
-    private static Configuration conf;
+    private static final String BLOCK_FILE = "output_block.txt"; // 블록 파일 경로
+    private static final byte[] FILE_SEPARATOR = {(byte) 0x1A}; // U+001A SUBSTITUTE (SUB) 문자
 
     public static void main(String[] args) {
-        conf = new Configuration();
-        conf.set("fs.defaultFS", "hdfs://namenode:9000"); // HDFS 설정
-
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
              InputStream in = socket.getInputStream();
              FileOutputStream fos = new FileOutputStream(METADATA_FILE)) {
@@ -27,8 +22,7 @@ public class MetadataClient {
             receiveMetadata(in, fos);
             System.out.println("Metadata received.");
 
-            String desiredFile = "desired_file.txt"; // 원하는 파일 이름
-            extractFileFromHDFS(desiredFile, METADATA_FILE, HDFS_BLOCK_FILE);
+            extractFile("desired_file.txt", METADATA_FILE, BLOCK_FILE);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -42,7 +36,7 @@ public class MetadataClient {
         }
     }
 
-    private static void extractFileFromHDFS(String fileName, String metadataFile, String hdfsBlockFile) throws IOException {
+    private static void extractFile(String fileName, String metadataFile, String blockFile) throws IOException {
         List<String> lines = Files.readAllLines(Paths.get(metadataFile));
         long fileStartPos = -1;
         for (String line : lines) {
@@ -58,26 +52,25 @@ public class MetadataClient {
             return;
         }
 
-        FileSystem fs = FileSystem.get(conf);
-        try (InputStream hdfsInputStream = fs.open(new Path(hdfsBlockFile));
-             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-            hdfsInputStream.skip(fileStartPos);
-
+        try (RandomAccessFile raf = new RandomAccessFile(blockFile, "r")) {
+            raf.seek(fileStartPos);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
             byte[] buffer = new byte[8192]; // 8KB 버퍼
             int bytesRead;
             boolean fileEndFound = false;
 
-            while ((bytesRead = hdfsInputStream.read(buffer)) != -1) {
+            while ((bytesRead = raf.read(buffer)) != -1) {
                 baos.write(buffer, 0, bytesRead);
-                String content = baos.toString("ISO-8859-1");
-                if (content.contains("\n--- FILE SEPARATOR ---\n")) {
-                    int endPos = content.indexOf("\n--- FILE SEPARATOR ---\n");
-                    baos = new ByteArrayOutputStream();
-                    baos.write(content.substring(0, endPos).getBytes("ISO-8859-1"));
-                    fileEndFound = true;
-                    break;
+                byte[] content = baos.toByteArray();
+                for (int i = 0; i < content.length; i++) {
+                    if (content[i] == FILE_SEPARATOR[0]) {
+                        fileEndFound = true;
+                        baos = new ByteArrayOutputStream();
+                        baos.write(content, 0, i);
+                        break;
+                    }
                 }
+                if (fileEndFound) break;
             }
 
             if (fileEndFound) {

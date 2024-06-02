@@ -1,19 +1,16 @@
-//package org.service;
-//
 //import java.io.*;
 //import java.nio.file.*;
-//import java.util.ArrayList;
-//import java.util.List;
+//import java.util.*;
 //
-//public class FileMerger {
+//public class PriorityQueueFileMerger {
 //
 //    private static final long BLOCK_SIZE = 64 * 1024 * 1024; // 64MB
 //    private static final byte[] FILE_SEPARATOR = {(byte) 0x1A}; // U+001A SUBSTITUTE (SUB) 문자
 //
 //    public static void main(String[] args) {
-//        String inputDir = "input_directory"; // 입력 디렉터리 경로
-//        String outputBlockFile = "output_block.txt"; // 출력 블록 파일 경로
-//        String metadataFile = "metadata.txt"; // 메타데이터 파일 경로
+//        String inputDir = "input_directory";
+//        String outputBlockFile = "output_block.txt";
+//        String metadataFile = "metadata.txt";
 //
 //        try {
 //            mergeFiles(inputDir, outputBlockFile, metadataFile);
@@ -23,17 +20,18 @@
 //    }
 //
 //    public static void mergeFiles(String inputDir, String outputBlockFile, String metadataFile) throws IOException {
-//        List<Path> files = filterFiles(inputDir);
+//        PriorityQueue<Path> fileQueue = filterFiles(inputDir);
 //        try (BufferedOutputStream blockWriter = new BufferedOutputStream(new FileOutputStream(outputBlockFile));
 //             BufferedWriter metadataWriter = new BufferedWriter(new FileWriter(metadataFile))) {
 //
 //            long currentBlockSize = 0;
-//            for (Path file : files) {
+//            while (!fileQueue.isEmpty()) {
+//                Path file = fileQueue.poll();
 //                long fileSize = Files.size(file);
 //                String metadata = file.getFileName().toString() + ": " + currentBlockSize + "\n";
 //
 //                try (InputStream fileInputStream = new BufferedInputStream(new FileInputStream(file.toFile()))) {
-//                    byte[] buffer = new byte[8192]; // 8KB 버퍼
+//                    byte[] buffer = new byte[8192];
 //                    int bytesRead;
 //                    while ((bytesRead = fileInputStream.read(buffer)) != -1) {
 //                        blockWriter.write(buffer, 0, bytesRead);
@@ -49,15 +47,21 @@
 //        }
 //    }
 //
-//    private static List<Path> filterFiles(String dir) throws IOException {
-//        List<Path> filteredFiles = new ArrayList<>();
+//    private static PriorityQueue<Path> filterFiles(String dir) throws IOException {
+//        PriorityQueue<Path> fileQueue = new PriorityQueue<>(Comparator.comparingLong(file -> {
+//            try {
+//                return Files.size(file);
+//            } catch (IOException e) {
+//                throw new UncheckedIOException(e);
+//            }
+//        }));
 //        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(dir))) {
 //            for (Path entry : stream) {
 //                if (Files.isRegularFile(entry) && Files.size(entry) < BLOCK_SIZE) {
-//                    filteredFiles.add(entry);
+//                    fileQueue.add(entry);
 //                }
 //            }
 //        }
-//        return filteredFiles;
+//        return fileQueue;
 //    }
 //}
