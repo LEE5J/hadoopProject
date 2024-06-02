@@ -65,7 +65,6 @@ public class MetadataClient {
                 for (int i = 0; i < content.length; i++) {
                     if (content[i] == FILE_SEPARATOR[0]) {
                         fileEndFound = true;
-                        baos = new ByteArrayOutputStream();
                         baos.write(content, 0, i);
                         break;
                     }
