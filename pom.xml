@@ -88,6 +88,13 @@
             <version>${hadoop.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
+
         <!-- Other dependencies your project may need -->
     </dependencies>
 </project>

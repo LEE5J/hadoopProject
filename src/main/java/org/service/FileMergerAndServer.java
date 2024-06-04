@@ -1,10 +1,14 @@
 package org.service;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class FileMergerAndServer {
 
@@ -13,12 +17,13 @@ public class FileMergerAndServer {
     private static final int PORT = 12345;
     private static final String METADATA_FILE = "metadata.txt"; // 메타데이터 파일 경로
     private static final String BLOCK_FILE = "output_block.txt"; // 블록 파일 경로
+    private static final String TOPIC_NAME = "file_data"; // Kafka 토픽 이름
 
     public static void main(String[] args) {
-        String inputDir = "input_directory"; // 입력 디렉터리 경로
-
         try {
-            mergeFiles(inputDir, BLOCK_FILE, METADATA_FILE);
+            List<Path> tempFiles = consumeFromKafkaAndSaveToFile();
+            List<Path> filteredFiles = filterFiles(tempFiles);
+            mergeFiles(filteredFiles, BLOCK_FILE, METADATA_FILE);
             System.out.println("Files merged successfully. Starting server...");
             startMetadataServer();
         } catch (IOException e) {
@@ -26,8 +31,47 @@ public class FileMergerAndServer {
         }
     }
 
-    public static void mergeFiles(String inputDir, String outputBlockFile, String metadataFile) throws IOException {
-        List<Path> files = filterFiles(inputDir);
+    private static List<Path> consumeFromKafkaAndSaveToFile() throws IOException {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "file_consumer_group");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Collections.singletonList(TOPIC_NAME));
+
+        List<Path> tempFiles = new ArrayList<>();
+        boolean running = true;
+
+        while (running) {
+            ConsumerRecords<String, String> records = consumer.poll(1000);
+            for (ConsumerRecord<String, String> record : records) {
+                String fileName = "temp_" + record.key() + ".txt";
+                Path filePath = Paths.get(fileName);
+                Files.write(filePath, record.value().getBytes());
+                tempFiles.add(filePath);
+                System.out.println("Received and saved: " + fileName);
+            }
+            if (!records.isEmpty()) {
+                running = false;
+            }
+        }
+        consumer.close();
+        return tempFiles;
+    }
+
+    private static List<Path> filterFiles(List<Path> files) throws IOException {
+        List<Path> filteredFiles = new ArrayList<>();
+        for (Path file : files) {
+            if (Files.size(file) < BLOCK_SIZE) {
+                filteredFiles.add(file);
+            }
+        }
+        return filteredFiles;
+    }
+
+    public static void mergeFiles(List<Path> files, String outputBlockFile, String metadataFile) throws IOException {
         try (BufferedOutputStream blockWriter = new BufferedOutputStream(new FileOutputStream(outputBlockFile));
              BufferedWriter metadataWriter = new BufferedWriter(new FileWriter(metadataFile))) {
 
@@ -51,18 +95,6 @@ public class FileMergerAndServer {
                 metadataWriter.write(metadata);
             }
         }
-    }
-
-    private static List<Path> filterFiles(String dir) throws IOException {
-        List<Path> filteredFiles = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(dir))) {
-            for (Path entry : stream) {
-                if (Files.isRegularFile(entry) && Files.size(entry) < BLOCK_SIZE) {
-                    filteredFiles.add(entry);
-                }
-            }
-        }
-        return filteredFiles;
     }
 
     public static void startMetadataServer() {
