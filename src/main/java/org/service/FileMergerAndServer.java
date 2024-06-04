@@ -125,7 +125,9 @@ public class FileMergerAndServer {
             long currentBlockSize = 0;
             for (Path file : files) {
                 long fileSize = Files.size(file);
-                String metadata = file.getFileName().toString() + ": " + currentBlockSize + "\n";
+                int currentNumber = (int) (currentBlockSize / BLOCK_SIZE);
+                int currentBlockPosition = (int) ((currentBlockSize % BLOCK_SIZE)/Math.pow(2,17));
+                String metadata = file.getFileName().toString() + ": " + currentBlockPosition*Math.pow(2,20)+currentNumber + "\n";
 
                 try (InputStream fileInputStream = new BufferedInputStream(new FileInputStream(file.toFile()))) {
                     byte[] buffer = new byte[8192]; // 8KB 버퍼
