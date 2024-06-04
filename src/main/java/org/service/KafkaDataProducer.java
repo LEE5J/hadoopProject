@@ -4,6 +4,9 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Properties;
 
 public class KafkaDataProducer {
@@ -17,11 +20,22 @@ public class KafkaDataProducer {
 
         Producer<String, String> producer = new KafkaProducer<>(props);
 
-        // 예제 데이터 전송
-        for (int i = 1; i <= 10; i++) {
-            String key = "key" + i;
-            String value = "This is file content for file" + i;
-            producer.send(new ProducerRecord<>(topicName, key, value));
+        // 파일 경로 설정
+        String[] files = {
+                "pride_and_prejudice.txt",
+                "war_and_peace.txt",
+                "alice_in_wonderland.txt"
+        };
+
+        for (String filePath : files) {
+            try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    producer.send(new ProducerRecord<>(topicName, filePath, line));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         producer.close();
