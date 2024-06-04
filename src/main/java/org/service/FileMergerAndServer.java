@@ -17,10 +17,9 @@ import java.util.*;
 public class FileMergerAndServer {
 
     private static final long BLOCK_SIZE = 64 * 1024 * 1024; // 64MB
-    private static final byte[] FILE_SEPARATOR = {(byte) 0x1A}; // U+001A SUBSTITUTE (SUB) 문자
+    private static final byte FILE_SEPARATOR = (byte) 0x1A; // U+001A SUBSTITUTE (SUB) 문자
     private static final int PORT = 12345;
     private static final String METADATA_FILE = "metadata.txt"; // 메타데이터 파일 경로
-    private static final String BLOCK_FILE = "output_block.txt"; // 블록 파일 경로
     private static final String TOPIC_NAME = "file_data"; // Kafka 토픽 이름
 
     public static void main(String[] args) {
@@ -38,7 +37,7 @@ public class FileMergerAndServer {
             List<Path> filteredFiles = filterFiles(tempFiles);
 
             // Step 4: Merge files and create metadata
-            mergeFiles(filteredFiles, BLOCK_FILE, METADATA_FILE);
+            mergeFiles(filteredFiles, METADATA_FILE);
             System.out.println("Files merged successfully. Starting server...");
 
             // Step 5: Start metadata server
@@ -118,17 +117,28 @@ public class FileMergerAndServer {
         return filteredFiles;
     }
 
-    public static void mergeFiles(List<Path> files, String outputBlockFile, String metadataFile) throws IOException {
-        try (BufferedOutputStream blockWriter = new BufferedOutputStream(new FileOutputStream(outputBlockFile));
+    public static void mergeFiles(List<Path> files, String metadataFile) throws IOException {
+        BufferedOutputStream blockWriter = null;
+        blockWriter = new BufferedOutputStream(new FileOutputStream("0.block"));
+        try (
              BufferedWriter metadataWriter = new BufferedWriter(new FileWriter(metadataFile))) {
-
             long currentBlockSize = 0;
             for (Path file : files) {
                 long fileSize = Files.size(file);
-                int currentNumber = (int) (currentBlockSize / BLOCK_SIZE);
-                int currentBlockPosition = (int) ((currentBlockSize % BLOCK_SIZE)/Math.pow(2,17));
-                String metadata = file.getFileName().toString() + ": " + currentBlockPosition*Math.pow(2,20)+currentNumber + "\n";
-
+                int currentNumber = 0;
+                String metadata = null;
+                if (fileSize + currentBlockSize > BLOCK_SIZE) {
+                    //이전블럭의 나머지공간을 패딩? 할필요 없지 않나 -> 우리가 쓴 currentBlockSize는 다시 계산
+                    //블럭 넘버증가
+                    currentNumber = (int) (currentBlockSize / BLOCK_SIZE);
+                    currentBlockSize = (currentNumber+1) * BLOCK_SIZE;
+                    currentNumber += 1;
+                    // 블럭파일 새로 열기
+                    blockWriter.close();
+                    blockWriter = new BufferedOutputStream(new FileOutputStream(currentNumber+".block"));
+                }
+                int currentBlockPosition = (int) ((currentBlockSize % BLOCK_SIZE) / Math.pow(2, 17));//단편화위치
+                metadata = file.getFileName().toString() + " " + currentBlockPosition * Math.pow(2, 20) + currentNumber + "\n";
                 try (InputStream fileInputStream = new BufferedInputStream(new FileInputStream(file.toFile()))) {
                     byte[] buffer = new byte[8192]; // 8KB 버퍼
                     int bytesRead;
@@ -136,13 +146,16 @@ public class FileMergerAndServer {
                         blockWriter.write(buffer, 0, bytesRead);
                         currentBlockSize += bytesRead;
                     }
+                    //128KB 공간내에서 남은 부분 패딩
+                    int paddingSize = (int) (Math.pow(2,17)-((currentBlockSize-1)%Math.pow(2,17)+1));
+                    currentBlockSize += paddingSize;
+                    byte[] buffer2 = new byte[paddingSize];
+                    for(int i=0; i<buffer2.length; i++) buffer2[i] = FILE_SEPARATOR;
+                    blockWriter.write(buffer2);
                 }
-
-                blockWriter.write(FILE_SEPARATOR);
-                currentBlockSize += FILE_SEPARATOR.length;
-
                 metadataWriter.write(metadata);
-            }
+            }//마지막 블럭은 패딩안함
+            blockWriter.close();
         }
     }
 
