@@ -7,11 +7,9 @@ import java.util.*;
 
 public class MetadataClient {
 
-    private static final String SERVER_ADDRESS = "localhost";
+    private static final String SERVER_ADDRESS = "192.168.100.19";
     private static final int SERVER_PORT = 12345;
-    private static final String METADATA_FILE = "received_metadata.txt"; // 수신할 메타데이터 파일
-    private static final String BLOCK_FILE = "output_block.txt"; // 블록 파일 경로
-    private static final byte[] FILE_SEPARATOR = {(byte) 0x1A}; // U+001A SUBSTITUTE (SUB) 문자
+    private static final String METADATA_FILE = "metadata.txt"; // 수신할 메타데이터 파일
 
     public static void main(String[] args) {
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);

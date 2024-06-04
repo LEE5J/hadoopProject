@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 
 public class FileDataLoader {
-    private static final LinkedList<FileInfo> fileInfoList = loadFileInfo("/absolutepath/datafile.txt",20);
+    private static final LinkedList<FileInfo> fileInfoList = loadFileInfo("./datafile.txt",20);
     public static LinkedList<FileInfo> loadFileInfo(String filePath,int blockAssign) { //블럭넘버할당
         int locateAssign = 32-blockAssign;
         LinkedList<FileInfo> fileInfoList = new LinkedList<>();
