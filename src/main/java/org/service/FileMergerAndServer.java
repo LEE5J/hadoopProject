@@ -4,6 +4,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.log4j.PropertyConfigurator;
 
 import java.io.*;
 import java.net.*;
@@ -20,15 +24,58 @@ public class FileMergerAndServer {
     private static final String TOPIC_NAME = "file_data"; // Kafka 토픽 이름
 
     public static void main(String[] args) {
+        // Log4j 설정 파일 로드
+        PropertyConfigurator.configure("log4j.properties");
+
         try {
+            // Step 1: Produce data to Kafka
+            produceDataToKafka();
+
+            // Step 2: Consume data from Kafka and save to temporary files
             List<Path> tempFiles = consumeFromKafkaAndSaveToFile();
+
+            // Step 3: Filter files based on size
             List<Path> filteredFiles = filterFiles(tempFiles);
+
+            // Step 4: Merge files and create metadata
             mergeFiles(filteredFiles, BLOCK_FILE, METADATA_FILE);
             System.out.println("Files merged successfully. Starting server...");
+
+            // Step 5: Start metadata server
             startMetadataServer();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void produceDataToKafka() {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        Producer<String, String> producer = new KafkaProducer<>(props);
+
+        // 파일 경로 설정
+        String[] files = {
+                "pride_and_prejudice.txt",
+                "war_and_peace.txt",
+                "alice_in_wonderland.txt"
+        };
+
+        for (String filePath : files) {
+            try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    producer.send(new ProducerRecord<>(TOPIC_NAME, filePath, line));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        producer.close();
+        System.out.println("Data sent to Kafka topic.");
     }
 
     private static List<Path> consumeFromKafkaAndSaveToFile() throws IOException {
@@ -47,7 +94,7 @@ public class FileMergerAndServer {
         while (running) {
             ConsumerRecords<String, String> records = consumer.poll(1000);
             for (ConsumerRecord<String, String> record : records) {
-                String fileName = "temp_" + record.key() + ".txt";
+                String fileName = "temp_" + record.key() + "_" + UUID.randomUUID() + ".txt";
                 Path filePath = Paths.get(fileName);
                 Files.write(filePath, record.value().getBytes());
                 tempFiles.add(filePath);
