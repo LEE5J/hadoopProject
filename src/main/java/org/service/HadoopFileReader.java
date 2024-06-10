@@ -45,7 +45,7 @@ public class HadoopFileReader {
         }
     }
 
-    private List<FileInfo> findFileInfo(String fileName) {//다음 파일까지 같이 넘겨받아야 종료 위치를 알수 있음
+    public List<FileInfo> findFileInfo(String fileName) {//다음 파일까지 같이 넘겨받아야 종료 위치를 알수 있음
         FileInfo target = null ,nextTarget = null;
         for (FileInfo fi : fileInfoList) {
             if (!target.equals(null)){

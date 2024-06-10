@@ -9,6 +9,7 @@ import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.*;
 import org.apache.hadoop.mapreduce.lib.output.*;
+import org.service.ProtoTextInputFormat;
 
 public class MyWordCount {
     public static class MyMapper extends Mapper<Object,Text, Text,IntWritable>{
@@ -47,8 +48,8 @@ public class MyWordCount {
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
-
-        job.setInputFormatClass(TextInputFormat.class);
+        job.setInputFormatClass(ProtoTextInputFormat.class);
+//        job.setInputFormatClass(TextInputFormat.class);
 
         job.setOutputFormatClass(TextOutputFormat.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));

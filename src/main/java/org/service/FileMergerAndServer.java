@@ -18,10 +18,6 @@ public class FileMergerAndServer {
 
         try {
 
-
-            // Step 3: Filter files based on size
-            //List<Path> filteredFiles = filterFiles("/media/test1/hdp/input/");
-
             Path directory = Paths.get("/media/test1/hdp/input/");
             List<Path> filteredFiles = Files.list(directory)
                     .filter(Files::isRegularFile)
