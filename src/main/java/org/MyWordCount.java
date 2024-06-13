@@ -9,7 +9,7 @@ import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.*;
 import org.apache.hadoop.mapreduce.lib.output.*;
-import org.service.ProtoTextInputFormat;
+import org.service.client.ProtoTextInputFormat;
 
 public class MyWordCount {
     public static class MyMapper extends Mapper<Object,Text, Text,IntWritable>{
