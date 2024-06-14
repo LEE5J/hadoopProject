@@ -15,7 +15,7 @@ import org.apache.hadoop.fs.Path;
 
 public class ProtoRecordReader extends RecordReader<LongWritable, Text> {
 
-    private Text key = new Text();
+    private LongWritable key = new LongWritable();
     private Text value = new Text();
     private boolean more = true;
     private DataInputStream in;
@@ -65,12 +65,12 @@ public class ProtoRecordReader extends RecordReader<LongWritable, Text> {
         }
 
         value.set(stringBuilder.toString());
-        key.set(Long.toString(pos)); // 포지션을 키로 사용
+        key.set(pos); // 포지션을 키로 사용
         return true;
     }
 
     @Override
-    public Text getCurrentKey() {
+    public LongWritable getCurrentKey() {
         return key;
     }
 
